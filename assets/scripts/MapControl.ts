@@ -1,4 +1,4 @@
-import { _decorator, Camera, Component, EventMouse, EventTouch, Node, NodeEventType, UITransform, v2, v3, Vec2, Vec3 } from 'cc';
+import { _decorator, Camera, Component, EventMouse, EventTouch, math, misc, Node, NodeEventType, size, UITransform, v2, v3, Vec2, Vec3, view } from 'cc';
 const { ccclass, property } = _decorator;
 
 @ccclass('MapControl')
@@ -6,35 +6,39 @@ export class MapControl extends Component {
   @property({type: Camera, displayName: 'tileMap摄像机'})
   mapCamera: Camera = null;
 
+  @property({type: Node, displayName: 'tileMap'})
+  tileMap: Node = null;
+
   @property({type: Number, displayName: '缩放最小比例'})
   minRatio: number = 0;
 
   @property({type: Number, displayName: '缩放最大比例'})
   maxRatio: number = 0;
 
-  @property({type: Number, displayName: '双指缩放速率', max: 10, min: 0.01})
-  fingerScalingRate: number = 0;
+  // @property({type: Number, displayName: '双指缩放速率', max: 10, min: 0.01})
+  // fingerScalingRate: number = 0;
 
   @property({type: Number, displayName: '鼠标缩放速率', max: 10, min: 0.01})
   mouseScalingRate: number = 0;
 
-  @property({type: Number, displayName: '缩放锚点修正速率'})
-  scalingReviseRate: number = 0;
+  // @property({type: Number, displayName: '缩放锚点修正速率'})
+  // scalingReviseRate: number = 0;
 
-  private defHeight: number = 1; // 默认ORTHO高度
-  private defPos: Vec3 = new Vec3(); // 默认摄像机位置
+  @property({type: Number, displayName: '触摸误差'})
+  moveDelta: number = 5;
+
+  // private defHeight: number = 1; // 默认ORTHO高度
+  // private defPos: Vec3 = new Vec3(); // 默认摄像机位置
   private isMoving: boolean = false;
-  // 保存触摸开始坐标
+
+  private beginPos: Vec3 = new Vec3();
   private startPos_0: Vec2 = new Vec2();
   private startPos_1: Vec2 = new Vec2();
-  // 保存点击触摸移动坐标
-  private movePos_0: Vec2 = new Vec2();
-  private movePos_1: Vec2 = new Vec2();
   private touchDis: number = 0;
 
   protected onLoad(): void {
-    this.defHeight = this.mapCamera.orthoHeight;
-    this.defPos = this.mapCamera.node.position;
+    // this.defHeight = this.mapCamera.orthoHeight;
+    // this.defPos = this.mapCamera.node.position;
 
     this.node.on(NodeEventType.TOUCH_START, this.onTouchStart, this);
     this.node.on(NodeEventType.TOUCH_MOVE, this.onTouchMove, this);
@@ -44,13 +48,10 @@ export class MapControl extends Component {
   private onTouchStart(e: EventTouch) {
     const touches = e.getAllTouches();
     if(touches.length == 1) {
-      console.log('单指触摸');
+      this.beginPos = this.mapCamera.node.position;
     }
     else if(touches.length == 2) {
-      console.log('双指触摸');
-      this.startPos_0 = touches[0].getLocation();
-      this.startPos_1 = touches[1].getLocation();
-      this.touchDis = Vec2.distance(this.startPos_0, this.startPos_1);
+
     }
   }
 
@@ -58,39 +59,83 @@ export class MapControl extends Component {
     let touches = e.getAllTouches();
     if(touches.length == 1) {
       const delta = e.getDelta();
-      this.mapCamera.node.setPosition(this.mapCamera.node.position.subtract(new Vec3(delta.x, delta.y, 0)));
+      if(this.isMoving || touches[0].getDelta().length() > this.moveDelta) {
+        this.isMoving = true;
+        const zoomRatio = this.getCameraZoonRatio();
+        this.beginPos = this.beginPos.subtract(v3(delta.x, delta.y, 0).divide3f(zoomRatio, zoomRatio, zoomRatio));
+        this.beginPos = this.dealCameraLimit(this.beginPos, zoomRatio);
+        this.mapCamera.node.setPosition(this.beginPos);
+      }e
     }
     else if(touches.length == 2) {
-      const touchPos_0 = touches[0].getLocation();
-      const touchPos_1 = touches[1].getLocation();
-      const newTouchDis = Vec2.distance(touchPos_0, touchPos_1);
-      if(newTouchDis > this.touchDis) {
-        // 放大
-        if((this.defHeight / this.mapCamera.orthoHeight) > this.maxRatio) return;
-        this.touchDis = newTouchDis;
-        this.mapCamera.orthoHeight *= 1 - this.fingerScalingRate;
+      this.isMoving = true;
+      const touch0 = touches[0];
+      const touch1 = touches[1];
 
-        // const centerPos = touchPos_0.add(touchPos_1).divide(v2(2, 2));
-        // this.mapCamera.node.setPosition(this.mapCamera.node.position.subtract(v3(centerPos.x, centerPos.y, 0)).divide(v3(this.scalingReviseRate, this.scalingReviseRate, 0)));
+      const delta0 = touch0.getDelta();
+      const delta1 = touch1.getDelta();
+
+      const touchPoint0 = touch0.getUILocation();
+      const touchPoint1 = touch1.getUILocation();
+
+      const zoomRatio = this.getCameraZoonRatio();
+      const distance = touchPoint0.subtract(touchPoint1);
+      const delta = delta0.subtract(delta1);
+
+      let targetScale: number;
+      // 根据水平或垂直分量大小确定目标缩放比（对应分量上的缩放比）
+      if(Math.abs(distance.x) > Math.abs(distance.y)) {
+        targetScale = (distance.x + delta.x) / distance.x * zoomRatio;
       }else {
-        // 缩小
-        if((this.defHeight / this.mapCamera.orthoHeight) < this.minRatio) return;
-        this.touchDis = newTouchDis;
-        this.mapCamera.orthoHeight *= 1 + this.fingerScalingRate;
-
-        // const centerPos = touchPos_0.add(touchPos_1).divide(v2(2, 2));
-        // this.mapCamera.node.setPosition(this.mapCamera.node.position.subtract(v3(centerPos.x, centerPos.y, 0)).divide(v3(this.scalingReviseRate, this.scalingReviseRate, 0)));
+        targetScale = (distance.y + delta.y) / distance.y * zoomRatio;
       }
+
+      // 使用第一根手指作为缩放锚点
+      let location = e.getUIStartLocation();
+      const realPos: Vec3 = this.mapCamera.screenToWorld(v3(location.x, location.y, 0));
+      const targetPos = this.mapCamera.node.parent.getComponent(UITransform).convertToNodeSpaceAR(realPos);
+      this.smooth(targetPos, targetScale);
     }
   }
 
   private onMouseWheel(e: EventMouse) {
-    const delta = e.getScrollY();
-    if(delta > 0) {
-      this.mapCamera.orthoHeight *= 1 - this.mouseScalingRate;
-    }else {
-      this.mapCamera.orthoHeight *= 1 + this.mouseScalingRate;
-    }
+    const scale = this.getCameraZoonRatio() - e.getScrollY() / this.mouseScalingRate * -1;
+    // const location = e.getUILocation();
+    const location = e.getLocation();
+    const realPos: Vec3 = this.mapCamera.screenToWorld(v3(location.x, location.y, 1000));
+    const targetPos = this.mapCamera.node.parent.getComponent(UITransform).convertToNodeSpaceAR(new Vec3(realPos.x, realPos.y, 0));
+    // const targetPos = this.mapCamera.node.parent.getComponent(UITransform).convertToNodeSpaceAR(new Vec3(location.x, location.y, 0));
+    this.smooth(targetPos, scale);
+  }
+
+  private smooth(targetPos: Vec3, targetScale: number) {
+    if(targetScale > this.maxRatio || targetScale < this.minRatio) return;
+    let uiTouchPos: Vec3 = targetPos.clone().subtract(this.mapCamera.node.position.clone()).multiplyScalar(this.getCameraZoonRatio());
+    let mapPos: Vec3 = targetPos.clone().subtract(uiTouchPos.divide3f(targetScale, targetScale, targetScale));
+    mapPos = this.dealCameraLimit(mapPos, targetScale);
+    this.setCameraZoonRatio(targetScale);
+    this.mapCamera.node.position = mapPos;
+  }
+
+  private dealCameraLimit(targetPos: Vec3, zoomRatio: number) {
+    const {width, height} = this.tileMap.getComponent(UITransform);
+    const size = view.getVisibleSize();
+
+    const maxX = (width - size.width / zoomRatio)/2;
+    const maxY = (height - size.height / zoomRatio)/2;
+
+    targetPos.x = misc.clampf(targetPos.x, -maxX, maxX);
+    targetPos.y = misc.clampf(targetPos.y, -maxY, maxY);
+
+    return targetPos;
+  }
+
+  private getCameraZoonRatio() {
+    return view.getVisibleSize().height * 0.5 / this.mapCamera.orthoHeight;
+  }
+
+  private setCameraZoonRatio(val: number) {
+    this.mapCamera.orthoHeight = view.getVisibleSize().height * 0.5 / val;
   }
 }
 
