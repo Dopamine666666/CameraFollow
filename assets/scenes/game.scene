@@ -678,7 +678,7 @@
     },
     "minRatio": 0.5,
     "maxRatio": 2,
-    "mouseScalingRate": 10,
+    "mouseScalingRate": 10000,
     "moveDelta": 5,
     "_id": "0eE5HmoDlISopfVzxsnw0u"
   },

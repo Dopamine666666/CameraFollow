@@ -18,7 +18,7 @@ export class MapControl extends Component {
   // @property({type: Number, displayName: '双指缩放速率', max: 10, min: 0.01})
   // fingerScalingRate: number = 0;
 
-  @property({type: Number, displayName: '鼠标缩放速率', max: 10, min: 0.01})
+  @property({type: Number, displayName: '鼠标缩放速率'})
   mouseScalingRate: number = 0;
 
   // @property({type: Number, displayName: '缩放锚点修正速率'})
@@ -26,20 +26,9 @@ export class MapControl extends Component {
 
   @property({type: Number, displayName: '触摸误差'})
   moveDelta: number = 5;
-
-  // private defHeight: number = 1; // 默认ORTHO高度
-  // private defPos: Vec3 = new Vec3(); // 默认摄像机位置
   private isMoving: boolean = false;
-
   private beginPos: Vec3 = new Vec3();
-  private startPos_0: Vec2 = new Vec2();
-  private startPos_1: Vec2 = new Vec2();
-  private touchDis: number = 0;
-
   protected onLoad(): void {
-    // this.defHeight = this.mapCamera.orthoHeight;
-    // this.defPos = this.mapCamera.node.position;
-
     this.node.on(NodeEventType.TOUCH_START, this.onTouchStart, this);
     this.node.on(NodeEventType.TOUCH_MOVE, this.onTouchMove, this);
     this.node.on(NodeEventType.MOUSE_WHEEL, this.onMouseWheel, this)
