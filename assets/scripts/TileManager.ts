@@ -14,7 +14,7 @@ export class TileManager extends Component {
 
     protected onLoad(): void {
         const ins = TileManager.ins();
-        this.node.on(NodeEventType.TOUCH_START, this.onTouchStart, this);
+        // this.node.on(NodeEventType.TOUCH_START, this.onTouchStart, this);
     }
 
     /** 由tileMap坐标转换成对应tile的左上顶点坐标 */ 
@@ -71,14 +71,6 @@ export class TileManager extends Component {
         if(!out) out = new Vec2();
         out.set(Math.trunc(tileX), Math.trunc(tileY));
         return out;
-    }
-
-    private onTouchStart(e: EventTouch) {
-        const UIPos = e.getUILocation();
-        console.log('UIPos', UIPos);
-        // const tilePos = this.screenToTile(UIPos);
-
-        // console.log('tilePos', tilePos);
     }
 
     private log() {

@@ -24,12 +24,16 @@ export class ItemManager extends Component {
   private canDrag: boolean = false;
 
   private onTouchItemStart(node: Node, idx: number, e: EventTouch) {
+    console.log('touch item');
+    // e.preventSwallow = true;
     this.curItemIdx = idx;
     this.startPos = e.getUILocation();
     this.beginTimer = Date.now();
   }
 
   private onTouchMove(e: EventTouch) {
+    // e.preventSwallow = true;
+    e.propagationStopped = false;
     if(!this.startPos) return;
     this.movePos = e.getUILocation();
     if(!this.canDrag) {
@@ -39,9 +43,13 @@ export class ItemManager extends Component {
     }else {
       ObjControl.ins.moveObj(this.movePos);
     }
+    
   }
 
   private onTouchEnd(e: EventTouch) {
+    console.log('end item');
+    // e.preventSwallow = true;
+    e.propagationStopped = false;
     this.startPos = this.movePos = null;
     this.canDrag = false;
   }
