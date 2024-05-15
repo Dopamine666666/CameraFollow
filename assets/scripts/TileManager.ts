@@ -6,11 +6,14 @@ export class TileManager extends Component {
     @property({type: TiledMap})
     tileMap: TiledMap = null;
 
-    protected onLoad(): void {
-        this.node.on(NodeEventType.TOUCH_START, this.onTouchStart, this);
+    private static _ins: TileManager = null;
+    static ins() {
+        if(!this._ins) this._ins = new TileManager();
+        return this._ins;
     }
 
-    bindEvent() {
+    protected onLoad(): void {
+        const ins = TileManager.ins();
         this.node.on(NodeEventType.TOUCH_START, this.onTouchStart, this);
     }
 
@@ -72,22 +75,13 @@ export class TileManager extends Component {
 
     private onTouchStart(e: EventTouch) {
         const UIPos = e.getUILocation();
-        // console.log('UIPos', UIPos);
-        const tilePos = this.screenToTile(UIPos);
+        console.log('UIPos', UIPos);
+        // const tilePos = this.screenToTile(UIPos);
 
         // console.log('tilePos', tilePos);
     }
 
     private log() {
-        // for(let i = 0; i < 5; i++) {
-            // console.log('0,0', this.tileMap.getLayer('view').getPositionAt(i, 0));
-        // }
-        // const tile0_0 = this.tileMap.getLayer('view');
-        // console.log('0,0', tile0_0.getTiledTileAt(0, 0, true).node.active = false);
-        // console.log('0,0', this.tileMap.getLayer('view').getPositionAt(0, 0));
-
-
-
     }
 }
 

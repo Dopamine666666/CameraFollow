@@ -10,16 +10,16 @@ export class MapControl extends Component {
   tileMap: Node = null;
 
   @property({type: Number, displayName: '缩放最小比例'})
-  minRatio: number = 0;
+  minRatio: number = 0.5;
 
   @property({type: Number, displayName: '缩放最大比例'})
-  maxRatio: number = 0;
+  maxRatio: number = 2;
 
   // @property({type: Number, displayName: '双指缩放速率', max: 10, min: 0.01})
   // fingerScalingRate: number = 0;
 
   @property({type: Number, displayName: '鼠标缩放速率'})
-  mouseScalingRate: number = 0;
+  mouseScalingRate: number = 10000;
 
   // @property({type: Number, displayName: '缩放锚点修正速率'})
   // scalingReviseRate: number = 0;
@@ -91,7 +91,7 @@ export class MapControl extends Component {
     const scale = this.getCameraZoonRatio() - e.getScrollY() / this.mouseScalingRate * -1;
     // const location = e.getUILocation();
     const location = e.getLocation();
-    const realPos: Vec3 = this.mapCamera.screenToWorld(v3(location.x, location.y, 1000));
+    const realPos: Vec3 = this.mapCamera.screenToWorld(v3(location.x, location.y, 0));
     const targetPos = this.mapCamera.node.parent.getComponent(UITransform).convertToNodeSpaceAR(new Vec3(realPos.x, realPos.y, 0));
     // const targetPos = this.mapCamera.node.parent.getComponent(UITransform).convertToNodeSpaceAR(new Vec3(location.x, location.y, 0));
     this.smooth(targetPos, scale);
@@ -104,6 +104,7 @@ export class MapControl extends Component {
     mapPos = this.dealCameraLimit(mapPos, targetScale);
     this.setCameraZoonRatio(targetScale);
     this.mapCamera.node.position = mapPos;
+    console.log('camera', this.mapCamera);
   }
 
   private dealCameraLimit(targetPos: Vec3, zoomRatio: number) {
@@ -125,6 +126,12 @@ export class MapControl extends Component {
 
   private setCameraZoonRatio(val: number) {
     this.mapCamera.orthoHeight = view.getVisibleSize().height * 0.5 / val;
+  }
+
+  protected onDestroy(): void {
+    this.node.off(NodeEventType.TOUCH_START, this.onTouchStart);
+    this.node.off(NodeEventType.TOUCH_MOVE, this.onTouchMove);
+    this.node.off(NodeEventType.MOUSE_WHEEL, this.onMouseWheel);
   }
 }
 
