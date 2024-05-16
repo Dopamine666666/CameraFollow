@@ -6,18 +6,21 @@ export class TileManager extends Component {
     @property({type: TiledMap})
     tileMap: TiledMap = null;
 
-    private static _ins: TileManager = null;
-    static ins() {
-        if(!this._ins) this._ins = new TileManager();
-        return this._ins;
-    }
+    public static ins: TileManager = null;
 
     protected onLoad(): void {
-        const ins = TileManager.ins();
-        // this.node.on(NodeEventType.TOUCH_START, this.onTouchStart, this);
+        TileManager.ins = this;
+        this.node.on(NodeEventType.TOUCH_START, this.onTouchStart, this);
     }
 
-    /** 由tileMap坐标转换成对应tile的左上顶点坐标 */ 
+    private onTouchStart(e: EventTouch) {
+        // const pos = e.getUILocation();
+        // // console.log(pos.x << 0, pos.y << 0);
+        // const tilePos = this.screenToTile(pos);
+        // console.log('tilePos', tilePos.x << 0, tilePos.y << 0);
+    }
+
+    /** 由tileMap坐标转换成对应tile的左上顶点坐标, 基准为UI坐标系 */ 
     public tileToScreen(tilePos: Vec2, out?: Vec2) {
         let mapSize = this.tileMap.getMapSize();
         let tileSize = this.tileMap.getTileSize();
@@ -45,7 +48,7 @@ export class TileManager extends Component {
         return out; 
     }
 
-    /** 由屏幕坐标转换成tileMap坐标 */
+    /** 由UI坐标转换成tileMap坐标 */
     public screenToTile(screenPos: Vec2, out?: Vec2) {
         let mapSize = this.tileMap.getMapSize();
         let tileSize = this.tileMap.getTileSize();
@@ -70,10 +73,8 @@ export class TileManager extends Component {
 
         if(!out) out = new Vec2();
         out.set(Math.trunc(tileX), Math.trunc(tileY));
+        console.log('tilePos', out);
         return out;
-    }
-
-    private log() {
     }
 }
 

@@ -1,4 +1,6 @@
 import { _decorator, Camera, Component, Event, EventMouse, EventTouch, math, misc, Node, NodeEventType, size, UITransform, v2, v3, Vec2, Vec3, view } from 'cc';
+import { TileManager } from './TileManager';
+import { ObjControl } from './ObjControl';
 const { ccclass, property } = _decorator;
 
 @ccclass('MapControl')
@@ -35,11 +37,12 @@ export class MapControl extends Component {
   }
   
   private onTouchStart(e: EventTouch) {
-    // e.preventSwallow = true;
-    console.log('touch in mapCtrl');
     const touches = e.getAllTouches();
     if(touches.length == 1) {
       this.beginPos = this.mapCamera.node.position;
+      
+      let tilePos = TileManager.ins.screenToTile(e.getUILocation());
+      console.log('tilePos', tilePos.x << 0, tilePos.y << 0);
     }
     else if(touches.length == 2) {
 
@@ -47,7 +50,6 @@ export class MapControl extends Component {
   }
 
   private onTouchMove(e: EventTouch) {
-    // e.preventSwallow = true;
     let touches = e.getAllTouches();
     if(touches.length == 1) {
       const delta = e.getDelta();
@@ -57,7 +59,7 @@ export class MapControl extends Component {
         this.beginPos = this.beginPos.subtract(v3(delta.x, delta.y, 0).divide3f(zoomRatio, zoomRatio, zoomRatio));
         this.beginPos = this.dealCameraLimit(this.beginPos, zoomRatio);
         this.mapCamera.node.setPosition(this.beginPos);
-      }e
+      }
     }
     else if(touches.length == 2) {
       this.isMoving = true;
