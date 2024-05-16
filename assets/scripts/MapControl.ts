@@ -1,4 +1,4 @@
-import { _decorator, Camera, Component, EventMouse, EventTouch, math, misc, Node, NodeEventType, size, UITransform, v2, v3, Vec2, Vec3, view } from 'cc';
+import { _decorator, Camera, Component, Event, EventMouse, EventTouch, math, misc, Node, NodeEventType, size, UITransform, v2, v3, Vec2, Vec3, view } from 'cc';
 const { ccclass, property } = _decorator;
 
 @ccclass('MapControl')
@@ -35,6 +35,8 @@ export class MapControl extends Component {
   }
   
   private onTouchStart(e: EventTouch) {
+    // e.preventSwallow = true;
+    console.log('touch in mapCtrl');
     const touches = e.getAllTouches();
     if(touches.length == 1) {
       this.beginPos = this.mapCamera.node.position;
@@ -45,6 +47,7 @@ export class MapControl extends Component {
   }
 
   private onTouchMove(e: EventTouch) {
+    // e.preventSwallow = true;
     let touches = e.getAllTouches();
     if(touches.length == 1) {
       const delta = e.getDelta();
@@ -104,7 +107,6 @@ export class MapControl extends Component {
     mapPos = this.dealCameraLimit(mapPos, targetScale);
     this.setCameraZoonRatio(targetScale);
     this.mapCamera.node.position = mapPos;
-    console.log('camera', this.mapCamera);
   }
 
   private dealCameraLimit(targetPos: Vec3, zoomRatio: number) {
