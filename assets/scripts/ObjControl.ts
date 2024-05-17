@@ -25,29 +25,21 @@ export class ObjControl extends Component {
   }
 
   // 初始化时在tileMap坐标系(width/2, height/2)处生成
-  public initTileObj(idx: number, location?: Vec2, from?: Node) {
+  public createTileObj(idx: number, location?: Vec2, from?: Node) {
     const obj = instantiate(this.tileObj);
     obj.getComponentInChildren(Sprite).spriteFrame = this.spfArr[idx];
     this.movingObj = obj;
 
     const {width, height} = this.tileMap.getMapSize();
-    const pos = TileManager.ins.tileToScreen(v2(Math.floor((width-1)/2), Math.floor((height-1)/2)));
-    this.moveTo(pos);
+    // const pos = TileManager.ins.tileToWorld(v2(0, 0));
     obj.setParent(this.objLayer);
-  }
-
-  public test(idx: number, parent: Node, tilePos: Vec2) {
-    const obj = instantiate(this.tileObj);
-    obj.getComponentInChildren(Sprite).spriteFrame = this.spfArr[idx];
-    const {width, height} = this.tileMap.getMapSize();
-    const pos = TileManager.ins.tileToScreen(tilePos);
-    obj.setWorldPosition(v3(pos.x, pos.y, 0));
-    obj.setParent(parent);
+    this.moveTo(location);
+    
   }
 
   public moveTo(pos: Vec2) {
-    if(!this.movingObj) return;
-    this.movingObj.setPosition(v3(pos.x, pos.y, 0));
+    // if(!this.movingObj) return;
+    this.movingObj.setWorldPosition(v3(pos.x, pos.y, 0));
   }
 
   public transUIPosToTilePos(pos: Vec2) {

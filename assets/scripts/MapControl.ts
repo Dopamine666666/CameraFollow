@@ -34,15 +34,14 @@ export class MapControl extends Component {
     this.node.on(NodeEventType.TOUCH_START, this.onTouchStart, this);
     this.node.on(NodeEventType.TOUCH_MOVE, this.onTouchMove, this);
     this.node.on(NodeEventType.MOUSE_WHEEL, this.onMouseWheel, this)
-  }
-  
+  };
+
   private onTouchStart(e: EventTouch) {
     const touches = e.getAllTouches();
     if(touches.length == 1) {
       this.beginPos = this.mapCamera.node.position;
       
-      let tilePos = TileManager.ins.screenToTile(e.getUILocation());
-      console.log('tilePos', tilePos.x << 0, tilePos.y << 0);
+
     }
     else if(touches.length == 2) {
 

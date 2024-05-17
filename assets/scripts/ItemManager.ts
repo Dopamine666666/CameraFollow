@@ -30,7 +30,7 @@ export class ItemManager extends Component {
     // this.beginTimer = Date.now();
     const ctrl = ObjControl.ins;
     if(ctrl.movingObj) return;
-    ctrl.initTileObj(idx);
+    ctrl.createTileObj(idx);
   }
 
   // 更改拖拽逻辑，改为点击直接在对应节点生成，触摸移动事件绑定在生成的物体上
