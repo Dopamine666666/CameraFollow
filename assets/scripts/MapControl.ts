@@ -1,4 +1,4 @@
-import { _decorator, Camera, Component, Event, EventMouse, EventTouch, math, misc, Node, NodeEventType, size, UITransform, v2, v3, Vec2, Vec3, view } from 'cc';
+import { _decorator, Camera, Component, Event, EventMouse, EventTouch, math, misc, Node, NodeEventType, size, Touch, UITransform, v2, v3, Vec2, Vec3, view } from 'cc';
 import { TileManager } from './TileManager';
 import { ObjControl } from './ObjControl';
 const { ccclass, property } = _decorator;
@@ -30,10 +30,12 @@ export class MapControl extends Component {
   moveDelta: number = 5;
   private isMoving: boolean = false;
   private beginPos: Vec3 = new Vec3();
+  static ins: MapControl = null;
   protected onLoad(): void {
+    MapControl.ins = this;
     this.node.on(NodeEventType.TOUCH_START, this.onTouchStart, this);
     this.node.on(NodeEventType.TOUCH_MOVE, this.onTouchMove, this);
-    this.node.on(NodeEventType.MOUSE_WHEEL, this.onMouseWheel, this)
+    this.node.on(NodeEventType.MOUSE_WHEEL, this.onMouseWheel, this);
   };
 
   private onTouchStart(e: EventTouch) {
@@ -49,9 +51,10 @@ export class MapControl extends Component {
   }
 
   private onTouchMove(e: EventTouch) {
+    if(ObjControl.ins.isMoving) return;
     let touches = e.getAllTouches();
     if(touches.length == 1) {
-      const delta = e.getDelta();
+      const delta = this.getDelta(e.touch);
       if(this.isMoving || touches[0].getDelta().length() > this.moveDelta) {
         this.isMoving = true;
         const zoomRatio = this.getCameraZoonRatio();
@@ -110,6 +113,19 @@ export class MapControl extends Component {
     this.mapCamera.node.position = mapPos;
   }
 
+  private getDelta(touch: Touch) {
+    const UITrans = this.node.getComponent(UITransform);
+    if(UITrans) {
+      let cur = touch.getUILocation();
+      let prev = touch.getUIPreviousLocation();
+      const cur_node = UITrans.convertToNodeSpaceAR(v3(cur.x, cur.y));
+      const prev_node = UITrans.convertToNodeSpaceAR(v3(prev.x, prev.y));
+
+      const delta = cur_node.subtract(prev_node);
+      return delta;
+    }
+  }
+
   private dealCameraLimit(targetPos: Vec3, zoomRatio: number) {
     const {width, height} = this.tileMap.getComponent(UITransform);
     const size = view.getVisibleSize();
@@ -123,7 +139,7 @@ export class MapControl extends Component {
     return targetPos;
   }
 
-  private getCameraZoonRatio() {
+  public getCameraZoonRatio() {
     return view.getVisibleSize().height * 0.5 / this.mapCamera.orthoHeight;
   }
 
