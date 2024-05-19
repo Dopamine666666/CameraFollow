@@ -15,7 +15,8 @@ export class ItemManager extends Component {
   };
 
   private onTouchItemStart(node: Node, idx: number, e: EventTouch) {
-    const ctrl = ObjControl.ins;
+    let ctrl = ObjControl.ins;
+    console.log('ctrl', ctrl.movingObj);
     if(ctrl.movingObj) return;
     ctrl.createTileObj(idx);
   };

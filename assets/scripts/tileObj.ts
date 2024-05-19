@@ -4,13 +4,15 @@ const { ccclass, property } = _decorator;
 
 @ccclass('tileObj')
 export class tileObj extends Component {
-    protected onLoad(): void {
+  public id: string = '';
 
-    }
+  protected onLoad(): void {
 
-    public doSelected() {
-      console.log('selected it');
-    }
+  }
+
+  public doSelected() {
+    console.log('selected it');
+  }
 }
 
 
