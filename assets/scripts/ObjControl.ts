@@ -1,8 +1,10 @@
-import { _decorator, Button, Camera, Component, EventTouch, instantiate, Node, NodeEventType, Prefab, Sprite, SpriteFrame, TiledMap, Touch, UITransform, v2, v3, Vec2, Vec3 } from 'cc';
+import { _decorator, Button, Camera, Component, EventTouch, instantiate, Node, NodeEventType, NodePool, Prefab, Sprite, SpriteFrame, TiledMap, Touch, UITransform, v2, v3, Vec2, Vec3 } from 'cc';
 import { TileManager } from './TileManager';
 import { tileObj } from './tileObj';
 import { MapControl } from './MapControl';
-import { Data, GameData } from './UserData';
+import { Data, GameData, UserData } from './UserData';
+import { PoolManager } from './PoolManager';
+import { highLight } from './highLight';
 const { ccclass, property } = _decorator;
 
 @ccclass('ObjControl')
@@ -53,6 +55,8 @@ export class ObjControl extends Component {
   
   private enabledGid: number = 0;
   private disabledGid: number = 0;
+
+  private highLightPool: NodePool = null;
 
   protected onLoad(): void {
     ObjControl.ins = this;
@@ -113,7 +117,8 @@ export class ObjControl extends Component {
     // let newPos = this.movingObj.getPosition();
     // newPos = newPos.add(v3(delta.x, delta.y).divide3f(zoomRatio, zoomRatio, zoomRatio));
     // this.moveTo(v2(newPos.x, newPos.y), false);
-    const tilePos = TileManager.ins.worldToTile(world_v2.subtract(this.touchOffset));
+    let tilePos = TileManager.ins.worldToTile(world_v2.subtract(this.touchOffset));
+    tilePos = this.dealTileLimit(tilePos);
     const tileWorldPos = TileManager.ins.tileToWorld(tilePos);
     this.moveTo(tileWorldPos);
     this.updateMovingObjTilePos(tilePos.x, tilePos.y);
@@ -126,6 +131,7 @@ export class ObjControl extends Component {
     if(lastTilePos.x != tilePos.x || lastTilePos.y != tilePos.y) {
       this.updateGrids();
     }
+    console.log('pos', tilePos.x, tilePos.y);
   }
 
   // 初始化时在tileMap坐标系(width/2, height/2)处生成 
@@ -158,6 +164,7 @@ export class ObjControl extends Component {
     console.log('do select');
     this.updateObjManagerPos();
     this.objManager.active = true;
+    this.initGrids();
     this.updateGrids();
   }
 
@@ -169,25 +176,82 @@ export class ObjControl extends Component {
     this.movingPos = {x: x, y: y};
   }
 
-  private updateGrids() {
-    const layer = this.tileMap.getComponent(TiledMap).getLayer('view2');
-    this.movingGrids.forEach(grid => layer.setTileGIDAt(0, grid.x, grid.y));
+  private gridsNode: Node[] = [];
+  private initGrids() {
+    // 通过tileMap tile层高亮所占区块(性能问题，暂不采用)
+    // const layer = this.tileMap.getComponent(TiledMap).getLayer('view2');
+    // this.movingGrids.forEach(grid => layer.setTileGIDAt(0, grid.x, grid.y));
+    // this.movingGrids.length = 0;
+    // const {width, height} = GameData.tileCfg[this.movingId].size;
+    // // const {id, pos, direction} = Data.getTile(this.movingId);
+    // let w = this.movingDir == 1 ? width : height;
+    // let h = this.movingDir == 1 ?  height : width;
+    // for(let i = 0; i < w; i++) {
+    //   for(let j = 0; j < h; j++) {
+    //     let newPos = {x: this.movingPos.x - i, y: this.movingPos.y - j};
+    //     this.movingGrids.push(newPos);
+    //     layer.getTiledTileAt(newPos.x, newPos.y, true).grid = this.enabledGid;
+    //   }
+    // }
     this.movingGrids.length = 0;
+    this.gridsNode.length = 0;
     const {width, height} = GameData.tileCfg[this.movingId].size;
-    // const {id, pos, direction} = Data.getTile(this.movingId);
     let w = this.movingDir == 1 ? width : height;
     let h = this.movingDir == 1 ?  height : width;
-    for(let i = 0; i < w; i++) {
-      for(let j = 0; j < h; j++) {
-        let newPos = {x: this.movingPos.x - i, y: this.movingPos.y - j};
+    const poolMgr = PoolManager.ins;
+    for (let i = 0; i < w; i++) {
+      for (let j = 0; j < h; j++) {
+        let newPos = { x: this.movingPos.x - i, y: this.movingPos.y - j };
         this.movingGrids.push(newPos);
-        layer.getTiledTileAt(newPos.x, newPos.y, true).grid = this.enabledGid;
-        console.log('update');
-        // console.log('get', layer.getTiledTileAt(newPos.x, newPos.y));
-        // layer.setTileGIDAt(this.enabledGid, newPos.x, newPos.y);
+        const world = TileManager.ins.tileToWorld(v2(newPos.x, newPos.y));
+        const node = poolMgr.getHighLight();
+        node.setParent(this.objManager);
+        this.gridsNode.push(node);
+        const script = node.getComponent(highLight);
+        script.setHighLightSpf(0);
+        script.setHighLightPos(world);
+        script.updateXY(newPos.x, newPos.y);
       }
     }
-    // layer.getTiledTileAt(this.movingPos.x, this.movingPos.y, true).grid = this.enabledGid;
+  }
+
+  private updateGrids() {
+    const tiles = Data.getTileData();
+    let probably: string[] = [];
+    const curW = GameData.tileCfg[this.movingId].size.width;
+    const curH = GameData.tileCfg[this.movingId].size.height;
+    const r_0 = Math.max(curW, curH);
+    const pos_0 = this.movingPos;
+    // 更新高亮块坐标
+    this.movingGrids.length = 0;
+    for (let i = 0; i < curW; i++) {
+      for (let j = 0; j < curH; j++) {
+        let newPos = { x: this.movingPos.x - i, y: this.movingPos.y - j };
+        this.movingGrids.push(newPos);
+        this.gridsNode[this.movingGrids.length - 1].getComponent(highLight).setHighLightSpf(0);
+      }
+    }
+    // 处理冲突块
+    tiles.forEach(tile => {
+      const {width, height} = GameData.tileCfg[tile.id].size;
+      const r_1 = Math.max(width, height);
+      const pos_1 = tile.pos;
+      if(Math.abs(pos_0.x - pos_1.x) < r_0 + r_1 || Math.abs(pos_0.y - pos_1.y) < r_0 + r_1) {
+        probably.push(tile.id);
+      }
+    });
+    console.log(probably);
+    console.log(this.movingId);
+    this.movingGrids.forEach((curGrid, idx) => {
+      probably.forEach(id => {
+        const grids = Data.getTile(id).grids;
+        grids.forEach(otherGrid => {
+          if(curGrid.x == otherGrid.x && curGrid.y == otherGrid.y) {
+            this.gridsNode[idx].getComponent(highLight).setHighLightSpf(1);
+          }
+        })
+      })
+    })
   }
 
   // 确认编辑变更
@@ -196,7 +260,7 @@ export class ObjControl extends Component {
     this.objManager.setPosition(v3(99999, 99999));
     let id = this.movingId;
     let {x, y} = this.movingPos;
-    Data.setTile({id: id, pos: {x: x, y: y}, direction: this.movingDir});
+    Data.setTile({id: id, pos: {x: x, y: y}, direction: this.movingDir, grids: this.movingGrids});
     this.movingId = '';
     this.movingPos = null;
     this.movingObj = null;
@@ -231,6 +295,20 @@ export class ObjControl extends Component {
       const delta = cur_node.subtract(prev_node);
       return delta;
     }
+  }
+
+  private dealTileLimit(pos: Vec2) {
+    const {width, height} = GameData.tileCfg[this.movingId].size;
+    const mapW = this.tileMap.getMapSize().width;
+    const mapH = this.tileMap.getMapSize().height;
+
+    let w = this.movingDir == 1 ? width : height;
+    let h = this.movingDir == 1 ?  height : width;
+
+    let x = pos.x - (w-1) <= 0 ?  w - 1 : pos.x >= mapW - 1 ? mapW - 1 : pos.x; 
+    let y = pos.y - (h-1) <= 0 ?  h - 1 : pos.y >= mapH - 1 ? mapH - 1 : pos.y;
+    
+    return v2(x, y);
   }
 
   // 计算当前触点与点击物品的偏移向量
@@ -269,5 +347,3 @@ export class ObjControl extends Component {
     view2.setTilesGIDAt(new Array(width * height).fill(0), 0, 0, width);
   }
 }
-
-

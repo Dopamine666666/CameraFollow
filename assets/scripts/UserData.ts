@@ -1,7 +1,7 @@
 type Tile = {
     id: string,
     pos: {x: number, y: number},
-    // grids?: {x: number, y: number}[],
+    grids: {x: number, y: number}[],
     direction: 1 | -1,
 };
 export class UserData {
@@ -24,14 +24,15 @@ export class UserData {
             tileData.pos.x = data.pos.x;
             tileData.pos.y = data.pos.y;
             tileData.direction = data.direction;
+            tileData.grids.length = 0;
+            data.grids.forEach(grid => tileData.grids.push({x: grid.x, y: grid.y}));
         }else {
             console.log('set new tile');
-            this._tileData.push(data);
+            this._tileData.push(CloneDeep(data));
         }
     }
 
     public getTile(id: string) {
-        console.log('data', this._tileData);
         return this._tileData.find(data => data.id == id);
     }
 }
@@ -52,5 +53,18 @@ export const GameData: GameCfg = {
         ['3']: {size: {width: 3, height: 2}},
     }
 }
+
+export function CloneDeep<T>(obj: T) {
+    if (typeof obj != 'object') {
+      return obj;
+    }
+    const ret = (obj instanceof Array ? [] : {}) as T;
+  
+    for (let key in obj) {
+      ret[key] = CloneDeep(obj[key]);
+    }
+  
+    return ret;
+  }
 
 
