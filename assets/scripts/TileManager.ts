@@ -23,6 +23,7 @@ export class TileManager extends Component {
         const pos = e.getLocation();
         const world = this.mapCamera.screenToWorld(v3(pos.x, pos.y, 0));
         const tilePos = this.worldToTile(v2(world.x, world.y));
+        console.log('gid', this.tileMap.getLayer('view').getTileGIDAt(tilePos.x, tilePos.y));
     }
 
     /** 由tileMap坐标转换成对应tile的左上顶点坐标, 基准为UI坐标系 */ 
