@@ -60,7 +60,6 @@ export class ObjControl extends Component {
 
   protected onLoad(): void {
     ObjControl.ins = this;
-    this.loadGid();
     this.node.on(NodeEventType.TOUCH_START, this.onTouchStart, this);
     this.node.on(NodeEventType.TOUCH_END, this.onTouchEnd, this);
     this.node.on(NodeEventType.TOUCH_MOVE, this.onTouchMove, this);
@@ -131,7 +130,7 @@ export class ObjControl extends Component {
     if(lastTilePos.x != tilePos.x || lastTilePos.y != tilePos.y) {
       this.updateGrids();
     }
-    console.log('pos', tilePos.x, tilePos.y);
+    // console.log('pos', tilePos.x, tilePos.y);
   }
 
   // 初始化时在tileMap坐标系(width/2, height/2)处生成 
@@ -178,27 +177,15 @@ export class ObjControl extends Component {
 
   private gridsNode: Node[] = [];
   private initGrids() {
-    // 通过tileMap tile层高亮所占区块(性能问题，暂不采用)
-    // const layer = this.tileMap.getComponent(TiledMap).getLayer('view2');
-    // this.movingGrids.forEach(grid => layer.setTileGIDAt(0, grid.x, grid.y));
-    // this.movingGrids.length = 0;
-    // const {width, height} = GameData.tileCfg[this.movingId].size;
-    // // const {id, pos, direction} = Data.getTile(this.movingId);
-    // let w = this.movingDir == 1 ? width : height;
-    // let h = this.movingDir == 1 ?  height : width;
-    // for(let i = 0; i < w; i++) {
-    //   for(let j = 0; j < h; j++) {
-    //     let newPos = {x: this.movingPos.x - i, y: this.movingPos.y - j};
-    //     this.movingGrids.push(newPos);
-    //     layer.getTiledTileAt(newPos.x, newPos.y, true).grid = this.enabledGid;
-    //   }
-    // }
+    const poolMgr = PoolManager.ins;
     this.movingGrids.length = 0;
-    this.gridsNode.length = 0;
+    if(this.gridsNode.length) {
+      this.gridsNode.forEach(node => poolMgr.putHighLight(node));
+      this.gridsNode.length = 0;
+    }
     const {width, height} = GameData.tileCfg[this.movingId].size;
     let w = this.movingDir == 1 ? width : height;
     let h = this.movingDir == 1 ?  height : width;
-    const poolMgr = PoolManager.ins;
     for (let i = 0; i < w; i++) {
       for (let j = 0; j < h; j++) {
         let newPos = { x: this.movingPos.x - i, y: this.movingPos.y - j };
@@ -220,12 +207,14 @@ export class ObjControl extends Component {
     let probably: string[] = [];
     const curW = GameData.tileCfg[this.movingId].size.width;
     const curH = GameData.tileCfg[this.movingId].size.height;
-    const r_0 = Math.max(curW, curH);
+    let w_0 = this.movingDir == 1 ? curW : curH;
+    let h_0 = this.movingDir == 1 ?  curH : curW;
+    const r_0 = Math.max(w_0, h_0);
     const pos_0 = this.movingPos;
     // 更新高亮块坐标
     this.movingGrids.length = 0;
-    for (let i = 0; i < curW; i++) {
-      for (let j = 0; j < curH; j++) {
+    for (let i = 0; i < w_0; i++) {
+      for (let j = 0; j < h_0; j++) {
         let newPos = { x: this.movingPos.x - i, y: this.movingPos.y - j };
         this.movingGrids.push(newPos);
         this.gridsNode[this.movingGrids.length - 1].getComponent(highLight).setHighLightSpf(0);
@@ -233,20 +222,24 @@ export class ObjControl extends Component {
     }
     // 处理冲突块
     tiles.forEach(tile => {
+      if(tile.id == this.movingId) return;
       const {width, height} = GameData.tileCfg[tile.id].size;
+      // const dir = Data.getTile(tile.id).direction;
+      // let w_1 = dir == 1 ? width : height;
+      // let h_1 = dir == 1 ? height : width;
       const r_1 = Math.max(width, height);
       const pos_1 = tile.pos;
       if(Math.abs(pos_0.x - pos_1.x) < r_0 + r_1 || Math.abs(pos_0.y - pos_1.y) < r_0 + r_1) {
         probably.push(tile.id);
       }
     });
-    console.log(probably);
-    console.log(this.movingId);
+    this.canConfirm = true;
     this.movingGrids.forEach((curGrid, idx) => {
       probably.forEach(id => {
         const grids = Data.getTile(id).grids;
         grids.forEach(otherGrid => {
           if(curGrid.x == otherGrid.x && curGrid.y == otherGrid.y) {
+            this.canConfirm = false;
             this.gridsNode[idx].getComponent(highLight).setHighLightSpf(1);
           }
         })
@@ -254,8 +247,13 @@ export class ObjControl extends Component {
     })
   }
 
+  private canConfirm: boolean = true;
   // 确认编辑变更
   private confirm() {
+    if(!this.canConfirm) {
+      console.log('地块冲突，无法放置');
+      return;
+    }
     this.objManager.active = false;
     this.objManager.setPosition(v3(99999, 99999));
     let id = this.movingId;
@@ -282,6 +280,28 @@ export class ObjControl extends Component {
     this.movingId = '';
     this.movingPos = null;
     this.movingObj = null;
+  }
+  // 旋转(目前仅支持翻转)
+  private revolve() {
+    // 获取grids左上角顶点
+    let gridsClone = this.movingGrids.slice();
+    gridsClone.sort((a, b) => {
+      let x = a.x - b.x;
+      let y = a.y - b.y;
+      return x || y;
+    });
+    const anchorPoint = gridsClone[0];
+    console.log('0', this.movingPos.x, this.movingPos.y);
+    // 以顶点为原点进行转置
+    let x = anchorPoint.x + (this.movingPos.y - anchorPoint.y); 
+    let y = anchorPoint.y + (this.movingPos.x - anchorPoint.x); 
+    this.movingPos.x = x;
+    this.movingPos.y = y;
+    console.log('0', this.movingPos.x, this.movingPos.y);
+    this.movingDir = -this.movingDir as 1|-1;
+    this.movingObj.getChildByName('Sprite').setScale(v3(this.movingDir, 1, 0));
+    this.initGrids();
+    this.updateGrids();
   }
 
   private getDelta(touch: Touch) {
@@ -325,25 +345,15 @@ export class ObjControl extends Component {
         this.movingObj = this.contains[0];
         this.movingId = this.movingObj.getComponent(tileObj).id;
         const tileData = Data.getTile(this.movingId);
+        console.log('tileData', tileData);
         if(tileData) {
-          this.movingPos.x = tileData.pos.x;
-          this.movingPos.y = tileData.pos.y;
+          // this.movingPos.x = tileData.pos.x;
+          // this.movingPos.y = tileData.pos.y;
+          this.movingPos = tileData.pos;
         }
-        // 更改为单个节点管理
-        // this.movingObj.getComponent(tileObj).doSelected();
         this.doSelect();
         this.isMoving = true;
         this.touchOffset = this.getTouchOffset(this.startPos);
       }
-  }
-
-  private loadGid() {
-    const tiledMap = this.tileMap.getComponent(TiledMap);
-    const view2 = tiledMap.getLayer('view2');
-    this.enabledGid = view2.getTileGIDAt(0, 0);
-    this.disabledGid = view2.getTileGIDAt(1, 0);
-
-    const {width, height} = tiledMap.getTileSize();
-    view2.setTilesGIDAt(new Array(width * height).fill(0), 0, 0, width);
   }
 }

@@ -1,5 +1,6 @@
 import { _decorator, Component, EventTouch, Node, NodeEventType, SpriteFrame, Vec2 } from 'cc';
 import { ObjControl } from './ObjControl';
+import { Data } from './UserData';
 const { ccclass, property } = _decorator;
 
 @ccclass('ItemManager')
@@ -17,7 +18,14 @@ export class ItemManager extends Component {
   private onTouchItemStart(node: Node, idx: number, e: EventTouch) {
     let ctrl = ObjControl.ins;
     console.log('ctrl', ctrl.movingObj);
-    if(ctrl.movingObj) return;
+    if(ctrl.movingObj) {
+      console.log('操作中，无法生成');
+      return;
+    }
+    if(Data.getTile(idx.toString())) {
+      console.log('已放置，无法生成');
+      return;
+    }
     ctrl.createTileObj(idx);
   };
 }
