@@ -45,10 +45,10 @@ export class ObjControl extends Component {
   public static ins: ObjControl = null;
   public canEdit: boolean = false;
   public movingObj: Node | null = null;
-
+  // 当前放置物的数据
   public movingId: string = '';
   private movingPos: {x: number, y: number} | null = null;
-  private movingDir: 1 | -1 = 1;
+  private movingDir: 1 | -1 = -1;
   private movingGrids: {x: number, y: number}[] = [];
 
   private startTimer: number = -1;
@@ -118,16 +118,18 @@ export class ObjControl extends Component {
     // this.moveTo(v2(newPos.x, newPos.y), false);
     let tilePos = TileManager.ins.worldToTile(world_v2.subtract(this.touchOffset));
     tilePos = this.dealTileLimit(tilePos);
-    const tileWorldPos = TileManager.ins.tileToWorld(tilePos);
-    this.moveTo(tileWorldPos);
-    this.updateMovingObjTilePos(tilePos.x, tilePos.y);
 
-    const lastPos = e.getPreviousLocation();
+    let lastPos = e.getPreviousLocation();
     const last_world_v3 = this.mapCamera.screenToWorld(v3(lastPos.x, lastPos.y));
     const last_world_v2 = v2(last_world_v3.x, last_world_v3.y);
-    const lastTilePos =  TileManager.ins.worldToTile(last_world_v2.subtract(this.touchOffset));
+    let lastTilePos =  TileManager.ins.worldToTile(last_world_v2.subtract(this.touchOffset));
+    lastTilePos = this.dealTileLimit(lastTilePos);
     // 仅当坐标变化时更新
     if(lastTilePos.x != tilePos.x || lastTilePos.y != tilePos.y) {
+      const tileWorldPos = TileManager.ins.tileToWorld(tilePos);
+      this.moveTo(tileWorldPos);
+      this.updateMovingObjTilePos(tilePos.x, tilePos.y);
+      // this.initGrids();
       this.updateGrids();
     }
     // console.log('pos', tilePos.x, tilePos.y);
@@ -137,6 +139,7 @@ export class ObjControl extends Component {
   public createTileObj(idx: number, location?: Vec2, from?: Node) {
     const obj = instantiate(this.tileObj);
     obj.getComponentInChildren(Sprite).spriteFrame = this.spfArr[idx];
+    obj.getChildByName('Sprite').setScale(v3(this.movingDir, 1, 0));
     this.movingId = obj.getComponent(tileObj).id = idx.toString();
     this.movingObj = obj;
     this.isMoving = true;
@@ -160,7 +163,7 @@ export class ObjControl extends Component {
   }
 
   private doSelect() {
-    console.log('do select');
+    // console.log('do select');
     this.updateObjManagerPos();
     this.objManager.active = true;
     this.initGrids();
@@ -215,7 +218,7 @@ export class ObjControl extends Component {
     this.movingGrids.length = 0;
     for (let i = 0; i < w_0; i++) {
       for (let j = 0; j < h_0; j++) {
-        let newPos = { x: this.movingPos.x - i, y: this.movingPos.y - j };
+        let newPos = { x: pos_0.x - i, y: pos_0.y - j };
         this.movingGrids.push(newPos);
         this.gridsNode[this.movingGrids.length - 1].getComponent(highLight).setHighLightSpf(0);
       }
@@ -268,7 +271,7 @@ export class ObjControl extends Component {
     this.objManager.active = false;
     this.objManager.setPosition(v3(99999, 99999));
     const tileData = Data.getTile(this.movingId);
-    console.log('get tile', tileData);
+    // console.log('get tile', tileData);
     if(tileData) {
       const world = TileManager.ins.tileToWorld(v2(tileData.pos.x, tileData.pos.y));
       this.moveTo(world);
@@ -283,23 +286,20 @@ export class ObjControl extends Component {
   }
   // 旋转(目前仅支持翻转)
   private revolve() {
+    this.movingDir *= -1;
     // 获取grids左上角顶点
     let gridsClone = this.movingGrids.slice();
-    gridsClone.sort((a, b) => {
-      let x = a.x - b.x;
-      let y = a.y - b.y;
-      return x || y;
-    });
-    const anchorPoint = gridsClone[0];
-    console.log('0', this.movingPos.x, this.movingPos.y);
+    const anchorPoint = gridsClone[gridsClone.length - 1];
     // 以顶点为原点进行转置
     let x = anchorPoint.x + (this.movingPos.y - anchorPoint.y); 
-    let y = anchorPoint.y + (this.movingPos.x - anchorPoint.x); 
-    this.movingPos.x = x;
-    this.movingPos.y = y;
-    console.log('0', this.movingPos.x, this.movingPos.y);
-    this.movingDir = -this.movingDir as 1|-1;
+    let y = anchorPoint.y + (this.movingPos.x - anchorPoint.x);
+    this.movingPos = this.dealTileLimit(v2(x, y));
     this.movingObj.getChildByName('Sprite').setScale(v3(this.movingDir, 1, 0));
+
+    // 翻转后需更新位置
+    const world = TileManager.ins.tileToWorld(v2(this.movingPos.x, this.movingPos.y));
+    this.moveTo(world);
+
     this.initGrids();
     this.updateGrids();
   }
@@ -345,11 +345,11 @@ export class ObjControl extends Component {
         this.movingObj = this.contains[0];
         this.movingId = this.movingObj.getComponent(tileObj).id;
         const tileData = Data.getTile(this.movingId);
-        console.log('tileData', tileData);
         if(tileData) {
           // this.movingPos.x = tileData.pos.x;
           // this.movingPos.y = tileData.pos.y;
-          this.movingPos = tileData.pos;
+          this.movingPos = {x: tileData.pos.x, y: tileData.pos.y};
+          this.movingDir = tileData.direction;
         }
         this.doSelect();
         this.isMoving = true;
