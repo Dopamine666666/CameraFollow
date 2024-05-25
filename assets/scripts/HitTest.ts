@@ -58,7 +58,7 @@ export class HitTest {
   checkPixels(pos: Vec2, sprite: Sprite): boolean {
     let buffer = this.readPixelsFromSprite(sprite);
     let idx = this.getBufferIdx(pos, sprite);
-    return buffer[idx + 3] > 0;
+    return buffer[3] > 0;
   }
 
   readPixelsFromSprite(sprite: Sprite) {
