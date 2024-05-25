@@ -121,7 +121,7 @@ export class PixelClick{
 
       let gfxTexture = texture.getGFXTexture();
       let gfxDevice = texture['_getGFXDevice']();
-      let bufferViews = [];
+      let bufferViews: ArrayBufferView[] = [];
       let region = new gfx.BufferTextureCopy();
       buffer = new Uint8Array(width * height * 4);
       region.texOffset.x = tx;
