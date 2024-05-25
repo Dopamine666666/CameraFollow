@@ -1,4 +1,4 @@
-import { Component, Mat4, Node, Sprite, SpriteFrame, UITransform, Vec2, Vec3, __private, gfx } from "cc";
+import { Component, Mat4, Node, RenderTexture, Sprite, SpriteFrame, UITransform, Vec2, Vec3, __private, gfx } from "cc";
 const mat4_temp: Mat4 = new Mat4();
 const worldMatrix: Mat4 = new Mat4();
 const zeroMatrix: Mat4 = new Mat4();
