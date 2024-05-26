@@ -37,7 +37,7 @@ export class HitTest {
         Vec3.set(world_v3, screen.x, screen.y, 0);
         camera.screenToWorld(world_v3, world_v3); 
         Vec2.set(world_v2, world_v3.x, world_v3.y);
-
+        // 世界坐标转换节点坐标(世界矩阵转换为逆矩阵，再乘以节点世界坐标向量得到节点坐标向量)
         node.getWorldMatrix(worldMatrix);
         Mat4.invert(mat4_temp, worldMatrix);
         if(Mat4.strictEquals(mat4_temp, zeroMatrix)) continue;
@@ -103,6 +103,27 @@ export class HitTest {
 
     if(sprite.trim) {
       let x = Math.floor(pos.x / (contentWidth / texWidth) + texWidth * anchorX);
+      let y = Math.floor(texHeight - (pos.y / (contentHeight / texHeight) + texHeight * anchorY));
+      idx = (y * texWidth + x) * 4;
+    }else {
+      let scaleX = contentWidth / originSize.width;
+      let scaleY = contentHeight / originSize.height;
+  
+      let leftPoint = pos.x + contentWidth * anchorX;
+      let topPoint = Math.abs(pos.y + contentHeight * (anchorY - 1));
+
+      let tx = spf.rect.x;
+      let ty = spf.rect.y;
+      // 开启自动合图，并且已合图
+      if(spf.packable && spf.original) {
+        tx = spf.original._x;
+        ty = spf.original._y;
+      }
+      // 计算鼠标在图像像素上的位置
+      let x = Math.floor((leftPoint - tx * scaleX) / scaleX);
+      let y = Math.floor((topPoint - ty * scaleY) / scaleY);
+      idx = (y * texWidth + x) * 4;
     }
+    return idx;
   }
 }
