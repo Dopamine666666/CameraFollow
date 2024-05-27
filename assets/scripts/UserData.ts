@@ -51,6 +51,7 @@ export const GameData: GameCfg = {
         ['1']: {size: {width: 3, height: 2}},
         ['2']: {size: {width: 3, height: 2}},
         ['3']: {size: {width: 3, height: 2}},
+        ['4']: {size: {width: 3, height: 2}},
     }
 }
 

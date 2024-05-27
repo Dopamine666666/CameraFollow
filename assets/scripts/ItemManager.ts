@@ -17,7 +17,6 @@ export class ItemManager extends Component {
 
   private onTouchItemStart(node: Node, idx: number, e: EventTouch) {
     let ctrl = ObjControl.ins;
-    console.log('ctrl', ctrl.movingObj);
     if(ctrl.movingObj) {
       console.log('操作中，无法生成');
       return;

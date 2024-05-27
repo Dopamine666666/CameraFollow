@@ -8,7 +8,14 @@ const world_v3: Vec3 = new Vec3();
 
 
 export class HitTest {
+  private spriteBufferMap: WeakMap<Sprite, Uint8Array> = new WeakMap();
   private nodeHItTestFnMap: WeakMap<UITransform, (screen: Vec2, windowId?: number) => boolean> = new WeakMap();
+
+  private static _ins: HitTest = null;
+  public static ins() {
+    if(!this._ins) this._ins = new HitTest();
+    return this._ins;
+  }
 
   enablePixelHitTest(node: Node, enable: boolean = true) {
     const uiTrans = node.getComponent(UITransform);
@@ -28,7 +35,7 @@ export class HitTest {
       let hit = oldHitTest.call(uiTrans, screen, windowId);
       if(!hit) return false; 
 
-      let scene = uiTrans._sceneGetter() ?? node.scene.renderScene;
+      let scene = uiTrans._sceneGetter?.() ?? node.scene.renderScene;
       for(let i = 0; i < scene.cameras.length; i++) {
         const camera = scene.cameras[i];
         if(!(camera.visibility & node.layer) || (camera.window && !camera.window.swapchain)) continue;
@@ -44,6 +51,7 @@ export class HitTest {
         Vec2.transformMat4(testPt, world_v2, mat4_temp);
         
         let checked = this.checkPixels(testPt, node.getComponent(Sprite));
+        console.log(checked);
         if(checked) return true;
       }
       return false;
@@ -55,34 +63,47 @@ export class HitTest {
 
   // }
 
-  checkPixels(pos: Vec2, sprite: Sprite): boolean {
+  private checkPixels(pos: Vec2, sprite: Sprite): boolean {
     let buffer = this.readPixelsFromSprite(sprite);
     let idx = this.getBufferIdx(pos, sprite);
-    return buffer[3] > 0;
+    return buffer[idx + 3] > 0;
   }
 
-  readPixelsFromSprite(sprite: Sprite) {
+  private readPixelsFromSprite(sprite: Sprite) {
     let buffer: Uint8Array = null;
-    let spf = sprite.spriteFrame;
-    let texture = spf.texture;
+    if(this.spriteBufferMap.has(sprite)) {
+      buffer = this.spriteBufferMap.get(sprite);
+    }
+    if(!buffer) {
+      let spf = sprite.spriteFrame;
+      let texture = spf.texture;
+  
+      let tx = spf.rect.x;
+      let ty = spf.rect.y;
+      if(spf.packable && spf.original) {
+        texture = spf.original._texture;
+        tx = spf.original._x;
+        ty = spf.original._y;
+      }
+      let width = spf.rect.width;
+      let height = spf.rect.height;
+  
+      
+      let gfxTexture = texture.getGFXTexture();
+      let gfxDevice = texture['_getGFXDevice']();
+      let bufferViews = [];
+      let region = new gfx.BufferTextureCopy();
 
-    let tx = spf.rect.x;
-    let ty = spf.rect.y;
-    let width = spf.rect.width;
-    let height = spf.rect.height;
-
-    
-    let gfxTexture = texture.getGFXTexture();
-    let gfxDevice = texture['_getGFXDevice']();
-    let region = new gfx.BufferTextureCopy();
-
-    region.texOffset.x = tx;
-    region.texOffset.y = ty;
-    region.texExtent.width = width;
-    region.texExtent.height = height;
-    buffer = new Uint8Array(width * height * 4);
-    
-    gfxDevice.copyTextureToBuffers(gfxTexture, [buffer], [region]);
+      region.texOffset.x = tx;
+      region.texOffset.y = ty;
+      region.texExtent.width = width;
+      region.texExtent.height = height;
+      buffer = new Uint8Array(width * height * 4);
+      bufferViews.push(buffer);
+      
+      gfxDevice.copyTextureToBuffers(gfxTexture, bufferViews, [region]);
+      this.spriteBufferMap.set(sprite, buffer);
+    }
     return buffer;
   }
 

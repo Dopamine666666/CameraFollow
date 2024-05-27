@@ -5,6 +5,7 @@ import { MapControl } from './MapControl';
 import { Data, GameData, UserData } from './UserData';
 import { PoolManager } from './PoolManager';
 import { highLight } from './highLight';
+import { HitTest } from './HitTest';
 const { ccclass, property } = _decorator;
 
 @ccclass('ObjControl')
@@ -48,7 +49,7 @@ export class ObjControl extends Component {
   // 当前放置物的数据
   public movingId: string = '';
   private movingPos: {x: number, y: number} | null = null;
-  private movingDir: 1 | -1 = -1;
+  private movingDir: 1 | -1 = 1;
   private movingGrids: {x: number, y: number}[] = [];
 
   private startTimer: number = -1;
@@ -60,33 +61,34 @@ export class ObjControl extends Component {
 
   protected onLoad(): void {
     ObjControl.ins = this;
-    this.node.on(NodeEventType.TOUCH_START, this.onTouchStart, this);
+    // this.node.on(NodeEventType.TOUCH_START, this.onTouchStart, this);
     this.node.on(NodeEventType.TOUCH_END, this.onTouchEnd, this);
     this.node.on(NodeEventType.TOUCH_MOVE, this.onTouchMove, this);
   }
 
   public isMoving: boolean = false;
-  private contains: Node[] = [];
+  private touchTarget: Node = null;
+  // private contains: Node[] = [];
   // private curObjPos: Vec2 = v2();
   private startPos: Vec2 = null; //world
   private touchOffset: Vec2 = v2(); //world
-  private onTouchStart(e: EventTouch) {
-    const pos = e.getLocation();
-    const world_v3 = this.mapCamera.screenToWorld(v3(pos.x, pos.y));
-    const world_v2 = v2(world_v3.x, world_v3.y);
-    if(this.movingObj == null) {
-      this.contains = this.objLayer.children.filter(child => child.getComponent(UITransform).getBoundingBoxToWorld().contains(world_v2));
-      if(this.contains.length) {
-        console.log('contains', this.contains);
-        this.startTimer = Date.now();
-        this.startPos = world_v2;
-      }
-    }
-    if(this.movingObj != null && this.movingObj.getComponent(UITransform).getBoundingBoxToWorld().contains(world_v2)) {
-      this.isMoving = true;
-      this.touchOffset = this.getTouchOffset(world_v2);
-    }
-  }
+  // private onTouchStart(e: EventTouch) {
+  //   const pos = e.getLocation();
+  //   const world_v3 = this.mapCamera.screenToWorld(v3(pos.x, pos.y));
+  //   const world_v2 = v2(world_v3.x, world_v3.y);
+  //   if(this.movingObj == null) {
+  //     this.contains = this.objLayer.children.filter(child => child.getComponent(UITransform).getBoundingBoxToWorld().contains(world_v2));
+  //     if(this.contains.length) {
+  //       console.log('contains', this.contains);
+  //       this.startTimer = Date.now();
+  //       this.startPos = world_v2;
+  //     }
+  //   }
+  //   if(this.movingObj != null && this.movingObj.getComponent(UITransform).getBoundingBoxToWorld().contains(world_v2)) {
+  //     this.isMoving = true;
+  //     this.touchOffset = this.getTouchOffset(world_v2);
+  //   }
+  // }
 
   private onTouchEnd(e: EventTouch) {
     this.startTimer = -1;
@@ -127,7 +129,7 @@ export class ObjControl extends Component {
     // 仅当坐标变化时更新
     if(lastTilePos.x != tilePos.x || lastTilePos.y != tilePos.y) {
       const tileWorldPos = TileManager.ins.tileToWorld(tilePos);
-      this.moveTo(tileWorldPos);
+      this.moveTo(tileWorldPos, tilePos);
       this.updateMovingObjTilePos(tilePos.x, tilePos.y);
       // this.initGrids();
       this.updateGrids();
@@ -138,28 +140,77 @@ export class ObjControl extends Component {
   // 初始化时在tileMap坐标系(width/2, height/2)处生成 
   public createTileObj(idx: number, location?: Vec2, from?: Node) {
     const obj = instantiate(this.tileObj);
-    obj.getComponentInChildren(Sprite).spriteFrame = this.spfArr[idx];
-    obj.getChildByName('Sprite').setScale(v3(this.movingDir, 1, 0));
+    obj.getComponent(Sprite).spriteFrame = this.spfArr[idx];
+    obj.setScale(v3(this.movingDir, 1, 1));
     this.movingId = obj.getComponent(tileObj).id = idx.toString();
     this.movingObj = obj;
-    this.isMoving = true;
+    // this.isMoving = true;
 
     const {width, height} = this.tileMap.getMapSize();
-    const pos = TileManager.ins.tileToWorld(v2(Math.floor(width/2), Math.floor(height/2)));
+    const tilePos = v2(Math.floor(width/2), Math.floor(height/2));
+    const pos = TileManager.ins.tileToWorld(tilePos);
     obj.setParent(this.objLayer);
-    this.moveTo(pos);
+    this.moveTo(pos, tilePos);
     this.updateMovingObjTilePos(Math.floor(width/2), Math.floor(height/2));
     this.doSelect();
+
+    HitTest.ins().enablePixelHitTest(obj, true);
+    obj.on(NodeEventType.TOUCH_START, this.onObjTouchStart, this);
+    // console.log(obj);
   }
 
-  public moveTo(pos: Vec2, isWorld: boolean = true) {
+  private onObjTouchStart(e: EventTouch) {
+    const pos = e.getLocation();
+    const world_v3 = this.mapCamera.screenToWorld(v3(pos.x, pos.y));
+    const world_v2 = v2(world_v3.x, world_v3.y);
+    if(this.movingObj == null) {
+      // this.contains = this.objLayer.children.filter(child => child.getComponent(UITransform).getBoundingBoxToWorld().contains(world_v2));
+      // if(this.contains.length) {
+      //   console.log('contains', this.contains);
+      //   this.startTimer = Date.now();
+      //   this.startPos = world_v2;
+      // }
+      this.touchTarget = e.target;
+      this.startTimer = Date.now();
+      this.startPos = world_v2;
+      e.preventSwallow = false;
+    }else {
+      this.isMoving = true;
+      this.touchOffset = this.getTouchOffset(world_v2);
+      e.preventSwallow = true;
+    }
+    // if(this.movingObj != null && this.movingObj.getComponent(UITransform).getBoundingBoxToWorld().contains(world_v2)) {
+    //   this.isMoving = true;
+    //   this.touchOffset = this.getTouchOffset(world_v2);
+    // }
+  }
+
+  public moveTo(pos: Vec2, tilePos: Vec2, isWorld: boolean = true) {
     if(!this.movingObj) return;
     if(isWorld) {
       this.movingObj.setWorldPosition(v3(pos.x, pos.y, 0));
     }else {
       this.movingObj.setPosition(v3(pos.x, pos.y, 0));
     }
-    this.updateObjManagerPos(); 
+    this.updateObjManagerPos();
+    this.movingObj.getComponent(tileObj).zIndex = this.getZIndex(tilePos);
+    this.setObjsSiblingZIndex();
+  }
+  
+  private setObjsSiblingZIndex() {
+    this.objLayer.children.sort((a, b) => {
+      return a.getComponent(tileObj).zIndex - b.getComponent(tileObj).zIndex;
+    });
+    for(let i = 0; i < this.objLayer.children.length; i++) {
+      this.objLayer.children[i].setSiblingIndex(i);
+    };
+  }
+
+  private getZIndex(pos: Vec2) {
+    let {x, y} = pos;
+    // z-index = (x + y)! + x;
+    let zIndex = (x + y) * (x + y + 1) / 2 + x;
+    return zIndex;
   }
 
   private doSelect() {
@@ -274,7 +325,7 @@ export class ObjControl extends Component {
     // console.log('get tile', tileData);
     if(tileData) {
       const world = TileManager.ins.tileToWorld(v2(tileData.pos.x, tileData.pos.y));
-      this.moveTo(world);
+      this.moveTo(world, v2(tileData.pos.x, tileData.pos.y));
       console.log('cancel reset');
     }else {
       this.movingObj.destroy();
@@ -294,11 +345,12 @@ export class ObjControl extends Component {
     let x = anchorPoint.x + (this.movingPos.y - anchorPoint.y); 
     let y = anchorPoint.y + (this.movingPos.x - anchorPoint.x);
     this.movingPos = this.dealTileLimit(v2(x, y));
-    this.movingObj.getChildByName('Sprite').setScale(v3(this.movingDir, 1, 0));
+    this.movingObj.setScale(v3(this.movingDir, 1, 1));
 
     // 翻转后需更新位置
-    const world = TileManager.ins.tileToWorld(v2(this.movingPos.x, this.movingPos.y));
-    this.moveTo(world);
+    const tilePos = v2(this.movingPos.x, this.movingPos.y);
+    const world = TileManager.ins.tileToWorld(tilePos);
+    this.moveTo(world, tilePos);
 
     this.initGrids();
     this.updateGrids();
@@ -311,7 +363,7 @@ export class ObjControl extends Component {
       let prev = touch.getUIPreviousLocation();
       const cur_node = UITrans.convertToNodeSpaceAR(v3(cur.x, cur.y));
       const prev_node = UITrans.convertToNodeSpaceAR(v3(prev.x, prev.y));
-
+ 
       const delta = cur_node.subtract(prev_node);
       return delta;
     }
@@ -342,7 +394,7 @@ export class ObjControl extends Component {
       if(this.startTimer < 0 || this.movingObj || !this.startPos) return;
       const now = Date.now();
       if(now - this.startTimer >= this.selectedTimer) {
-        this.movingObj = this.contains[0];
+        this.movingObj = this.touchTarget;
         this.movingId = this.movingObj.getComponent(tileObj).id;
         const tileData = Data.getTile(this.movingId);
         if(tileData) {
